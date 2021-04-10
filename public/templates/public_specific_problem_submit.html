@@ -1,0 +1,443 @@
+{% extends 'public_base_site.html'%}
+{% block title%} Submit{% endblock %}
+{% block content %}
+{% load widget_tweaks %}
+{% load static %}
+{% load js %} 
+<script src="{% static 'dropzone.js' %}"></script>
+<link rel="stylesheet" href="{% static 'dropzone.css' %}">
+
+<style>
+    .dropzone .dz-clickable {
+        display: flex;
+        align-items: center;
+    }
+
+    [class^="popup"] {
+        background: rgba(100, 100, 100, 0.5);
+        position: fixed;
+        display: none;
+        z-index: 5000;
+        height: 100%;
+        width: 100%;
+        left: 0;
+        top: 0;
+        
+    }
+
+    [class^="popup"] > div {
+        max-width: 600px;
+        width: 70%;
+        position: fixed;
+        transform: translate(-50%, -50%);
+        left: 50%;
+        top: 50%;
+        background: #FFFFFF;
+        padding: 30px;
+        z-index: 5001;
+        text-align: center;
+        border-radius: 10px;
+        box-shadow: 0px 0px 15px 0px rgba(0, 0, 0, 0.2);
+    }
+
+    .submission {
+        transition: all 0.1s ease-in-out;
+    }
+
+    .submission:hover {
+        cursor: pointer;
+        background-color: rgba(0, 255, 0, 0.1) !important;
+    }
+
+    [class^="submitted-code"] {
+        position: relative;
+        display: none;
+        background-color: #FFF;
+        border-radius: 8px;
+        box-shadow: 0px 0px 12px rgba(0, 0, 0, 0.1);
+        left: 0;
+        top: 0;
+    }
+
+    .source-code-editor {
+        height: 500px;
+        width: 540px;
+        font-size: 20px;
+    }
+</style>
+<script src="{% static 'ace-builds/src/ace.js' %}" type="text/javascript" charset="utf-8"> </script>
+<script src="{% static 'ace-builds/src/theme-twilight.js' %}" type="text/javascript" charset="utf-8"> </script>
+<script src="{% static 'ace-builds/src/mode-javascript.js' %}" type="text/javascript" charset="utf-8"> </script>
+
+
+
+<style>
+    .wrapper-2 {
+        width: 70%;
+        margin: 0 auto;
+    }
+
+    .cu-form-group {
+        align-items: flex-end;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        margin-bottom: 2.4em;
+        /* width: 100%; */
+    }
+    .cu-submit-btn {
+        height: 3em;
+        padding: 0 4em !important;
+        background-color: #0275d8 !important;
+    }
+
+    .cu-submit-btn:hover {
+        background-color: #0275d8 !important;
+    }
+
+    .cu-btn {
+        background-color: #0275d8 ;
+        padding: 0.6em 3em;
+        font-size: 1em;
+        margin-bottom: 1em;
+        border: 0;
+        border-radius: 0.2em;
+        color: #FFF;
+        cursor: pointer;
+        outline: none;
+    }
+
+    .submission-editor {
+        display: none;
+    }
+
+    .editor-nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #editor-theme {
+        display: none;
+    }
+
+    .file-upload {
+        background-color: #EFEFEF;
+        padding: 1.6em 2em;
+        margin-bottom: 2em;
+        border-radius: 0.4em;
+    }
+
+    .ace_editor {
+        height: 30em !important;
+        font-size: 1.3em;
+        border-radius: 0.3em;
+        border: 0.1em solid #EEE;
+    }
+
+    @media (max-width: 768px) {
+        .cu-form-group {
+            width: 100%;
+        }
+    }
+
+    .wrapper-2 .content {
+        border-top: 0.2em solid #EDEDED;
+        padding-top: 1.2em;
+        margin-top: 0.8em;
+    }
+
+    .cu-form-group-2 .cu-form-control:nth-child(2),
+    .cu-form-group-2 .cu-form-control:nth-child(3) {
+        width: 15em;
+        display: inline-block;
+        margin-right: 2em;
+    }
+    
+    .cu-form-group-2 .cu-form-control select {
+        width: 100%;
+        height: 3em;
+    }
+
+</style>
+
+
+<div class="wrapper-2">
+
+    <div class="file-upload">
+        <form method="POST" enctype="multipart/form-data"  action="{% url 'submit_specific_problem' problem.id %}">
+            {% csrf_token %}
+            <div class="cu-form-group">
+                {% for field in form.visible_fields %}
+                    <div class="cu-form-control">
+                        <label>{{ field.label|upper }}</label>
+                        <div class="cu-input">{{field}}</div>   
+                    </div>
+                {% endfor %}
+                <input type="submit" name="submit" value="submit" class="cu-submit-btn">
+            </div>
+        </form>
+    </div>
+
+    <!---------------------------------------------->
+    <div class="editor-nav">
+        <button type="button" id="editor-btn" class="cu-btn">Open editor</button>
+        <select id="editor-theme" name="editor-theme">
+            <option value="chrome">Chrome</option>
+            <option value="dracula">Dracula</option>
+            <option value="github">GitHub</option>
+            <option value="monokai" selected>Monokai</option>
+            <option value="terminal">Terminal</option>
+            <option value="twilight">Twilight</option>
+            <option value="xcode">Xcode</option>
+        </select>
+    </div>
+    <div class="submission-editor">
+        <form  method="POST" id="source-submit"  action="{% url 'submit_specific_problem_with_editor' problem.id %}">
+            {% csrf_token %}
+            <div class="cu-form-group-2">
+                {% for field in form1.visible_fields %}  
+                    <div class="cu-form-control">
+                        <label>{{ field.label|upper }}</label>
+                        <div class="cu-input">{{field}}</div>   
+                    </div>
+                {% endfor %}
+                <input type="submit"  name="submit2" value="Submit" class="cu-submit-btn">
+            </div>
+        </form>
+
+        <script src="{% static 'ace-builds/src/ace.js' %}" type="text/javascript" charset="utf-8"> </script>
+        <script src="{% static 'ace-builds/src/theme-twilight.js' %}" type="text/javascript" charset="utf-8"> </script>
+        <script src="{% static 'ace-builds/src/mode-javascript.js' %}" type="text/javascript" charset="utf-8"> </script>
+        
+        <script>   
+            let editor_button = document.querySelector("#editor-btn");
+            let submission_editor = document.querySelector(".submission-editor");
+            let editor_opened = false;
+            let source_editor = ace.edit("id_source");
+            let textarea = document.querySelector(".ace_editor textarea");
+
+
+            textarea.setAttribute("id", "id_source");
+            textarea.setAttribute("name", "source");
+
+
+            let file_upload = document.querySelector(".file-upload");
+
+            let theme = document.querySelector("#editor-theme");
+
+            theme.addEventListener("change", () => {
+                source_editor.setTheme(`ace/theme/${theme.value}`);
+            });
+
+            editor_button.addEventListener("click", () => {
+                if(editor_opened) {
+                    submission_editor.style.display = "none";
+                    editor_button.textContent = "Open editor";
+                    file_upload.style.opacity = "1";
+                    file_upload.style["pointer-events"] = "auto";
+                    theme.style.display = "none"; 
+                    editor_opened = false;
+                } else {
+                    submission_editor.style.display = "block";
+                    editor_button.textContent = "Close editor";
+                    file_upload.style.opacity = "0.3";
+                    file_upload.style["pointer-events"] = "none";
+                    theme.style.display = "block";
+                    editor_opened = true;
+                }
+            })
+
+            let language = document.querySelectorAll("select#id_language")[1];
+            let lang = 2;
+
+            let languages = ['python', 'python', 'java', 'c_cpp', 'c_cpp'];
+
+            language.addEventListener('change', () => {
+                lang = parseInt(language.value);
+                source_editor.session.setMode(`ace/mode/${languages[lang-1]}`);
+            });
+            
+            source_editor.setTheme(`ace/theme/${theme.value}`);
+            // var JavaScriptMode = ace.require("ace/mode/javascript").Mode;
+            // editor.session.setMode(new JavaScriptMode());
+            // var lang = {{language_mode | js}};
+            source_editor.session.setMode(`ace/mode/${languages[lang-1]}`);
+
+            let source_submit = document.querySelector("#source-submit");
+            source_submit.addEventListener("submit", function() {
+                textarea.value = source_editor.getSession().getValue();
+            })
+
+        </script>
+    </div>
+
+    <!--------------------------------------------------------->
+
+    <div class="content">
+        <h1>Your submissions</h1>
+            <table class="table table-light" >
+                <thead class="table-info">
+                    <tr>
+                        <th ><strong>SID</strong></th>
+                        <th ><strong>TIME</strong></th>
+                        <th ><strong>PROBLEM</strong></th>
+                        <th ><strong>LANGUAGE</strong></th>
+                        <th ><strong>RESULT</strong></th>
+                    </tr>
+                </thead>
+                {% for i in all_submits %}
+                <tr class = "submission" data-js="open{{forloop.counter}}">
+                    <td class="id" >{{i.id}}</td>
+                    <td>{{i.submit_time}}</td>
+                    <td>{{i.problem.title}}</td>
+                    <td>{{i.language}}</td>
+                    {%if i.result == 'Correct'%}
+                        <td style="color:green;">{{i.result}}</td>
+                    {%else%}
+                        <td style="color:red;">{{i.result}}</td>
+                    {%endif%}
+                </tr>
+
+                
+                <div class="popup{{forloop.counter}}">
+                    <div class="ur-card">
+                        <div class="submitted-code-{{ i.id }}">
+                            <p>Source Code</p>
+                            <div id="editor-{{i.id}}" class="source-code-editor"><pre><code>{{ i.source_code}}</code></pre></div>
+                        </div>
+                        <script type="text/javascript"> 
+                            var language_mode = '{{i.language_mode}}';
+                            var editor = ace.edit("editor-{{i.id}}");
+                            editor.setTheme("ace/theme/monokai");
+                            editor.session.setMode("ace/mode/" + language_mode);
+                        </script>
+                    </div>
+                </div>
+            {%endfor%}
+            </table>
+        
+
+        <div>
+        </div>
+    </div>
+
+</div>
+
+
+
+
+
+<script>
+    var submission = document.querySelectorAll('.submission');        
+    var code = document.querySelectorAll('[class^="submitted-code"]');
+
+    for(let i=0; i<submission.length; i++) {
+        var sub = submission[i];
+        sub.addEventListener('click', () => {
+            for(let j=0; j<submission.length; j++) {
+                if(sub == submission[j]) {
+                    code[i].style.display = 'block';
+                } else {
+                    code[j].style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    document.querySelector("#id_submit_file").addEventListener('change', function () {
+        
+        var langage_selector = null;
+        var file = document.getElementById("id_submit_file").value;
+        var problem = document.getElementById("id_problem").value;
+        // var language = document.getElementById("id_language").value;
+        var extension = file.split('\\').slice(-1)[0].split('.')[1];
+        var file_name = file.split('\\').slice(-1)[0].split('.')[0].toLowerCase();
+
+        // console.log(name, extension);
+        
+        if(!langage_selector){
+            var url = "{% url 'ajax_get_language_list' %}";
+            $.ajax({
+                url: url,
+                data: {},
+                success: function (data) {
+                    langage_selector = {"language_list": data["language_list"], "problem_list": data["problem_list"]};
+                    var language_list = langage_selector["language_list"];
+                    var problem_list = langage_selector["problem_list"];
+                    let best_language = null;
+                    for(let i=0; i< language_list.length; i++){
+                        if(language_list[i][1] == extension){
+                            best_language = language_list[i][0];
+                            break;
+                        }
+                    }
+                    all_language_list = document.getElementById("id_language");
+                    for (let c = 0; c < all_language_list.length; c++) {
+                        if (all_language_list.options[c].value == best_language) {
+                            all_language_list.options[c].selected = true;
+                            break;
+                        }
+                    }
+
+                    let best_problem = null;
+                    for(let i=0; i< problem_list.length; i++){
+                        if(problem_list[i][1] == file_name || problem_list[i][2] == file_name){
+                            best_problem = problem_list[i][0];
+                            break;
+                        }
+                    }
+                    all_problem_list = document.getElementById("id_problem");
+                    for (let c = 0; c < problem_list.length; c++) {
+                        if (all_problem_list.options[c].value == best_problem) {
+                            all_problem_list.options[c].selected = true;
+                            break;
+                        }
+                    }
+                    
+                }
+            });
+        }
+        else{
+            var language_list = langage_selector["language_list"];
+            var problem_list = langage_selector["problem_list"];
+                                        
+            let best_language = null;
+            for(let i=0; i< language_list.length; i++){
+                if(language_list[i][1] == extension){
+                    best_language = language_list[i][0];
+                    break;
+                }
+            }
+            all_language_list = document.getElementById("id_language");
+            for (let c = 0; c < language_list.length; c++) {
+                if (all_language_list.options[c].value == best_language) {
+                    all_language_list.options[c].selected = true;
+                    break;
+                }
+            }
+
+            let best_problem = null;
+            for(let i=0; i< problem_list.length; i++){
+                if(problem_list[i][1] == file_name || problem_list[i][2] == file_name){
+                    best_problem = problem_list[i][0];
+                    break;
+                }
+            }
+            all_problem_list = document.getElementById("id_problem");
+            for (let c = 0; c < problem_list.length; c++) {
+                if (all_problem_list.options[c].value == best_problem) {
+                    all_problem_list.options[c].selected = true;
+                    break;
+                }
+            }
+            
+        }
+        
+        
+    });
+
+</script>
+
+{% endblock %}

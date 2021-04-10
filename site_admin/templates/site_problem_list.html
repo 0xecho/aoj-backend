@@ -1,0 +1,49 @@
+{% extends 'site_base_site.html'%}
+{% block title%}Problem List | Andalus{% endblock %}
+
+{% block content %}
+{% load static %}
+{% load widget_tweaks %}
+
+<div class="card" style="margin-left: 5%;  margin-right: 5%;">
+    <div class="card-header" style="font-size: 18px;"> 
+        <strong>{{'problem list'|upper}}</strong> 
+        
+    </div>
+ 
+    <table >
+        <thead class="table-info">
+            <tr>
+                <th ><strong>No.</strong></th>
+                <th ><strong>Title of problem</strong></th>
+                <th ><strong>Short name</strong></th>
+                <th ><strong>Point</strong></th>
+                <th ><strong>time limit</strong></th>
+                {% comment %} <th ><strong>memory limit</strong></th> {% endcomment %}
+                <th ><strong>ballon color</strong></th>
+                <th ><strong>allow public</strong></th>
+                <th ><strong>pdf</strong></th>
+            </tr>
+        </thead>
+        {% for i in problem %}
+            <tr>
+                <td >{{forloop.counter}}</td>
+                <td >{{i.title}} </a></td>
+                <td >{{i.short_name}}</td>
+                <td >{{i.point}}</td>
+                <td >{{i.time_limit}}</td>
+                {% comment %} <td >{{i.memory_limit}}</td> {% endcomment %}
+                <td ><span style="height: 15px; width: 15px; background-color: {{i.ballon}}; 
+                    border-radius:50%; display: inline-block;"></span></td>
+                <td >{{i.is_public}}</td>
+                <td >
+                    <a href="{{i.pdf.url}}" target="_blank" title="pdf"> <img src="{% static 'Images/icons/problem.png' %}" height="20" width="20"></a>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+</div>
+
+{% endblock %}
+
+   

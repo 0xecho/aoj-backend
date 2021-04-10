@@ -1,0 +1,83 @@
+{% extends 'admin_base_site.html'%}
+{% block title%}Server List | Andalus{% endblock %}
+
+{% block content %}
+{% load static %}
+{% load widget_tweaks %}
+
+<script src="{% static 'files/jsi18n.js' %}"> </script>
+
+<div class="col-sm-12 col-centered" style="margin-top: 2em;">
+   <h5 class="ur-card-title" style="font-size: 1.5em;">server list
+      <a class="btn btn-outline-info" href="{% url 'add_judgeserver' %}" style="float:right;">Add server</a>
+   </h5>
+   <table class="table table-striped">
+      <thead class="table-info">
+         <tr>
+            <th><strong>No.</strong></th>
+            <th><strong>Adresss</strong></th>
+            <th><strong>Server Name</strong></th>
+            <th><strong>Number of CPU</strong></th>
+            <th><strong>CPU usage</strong></th>
+            <!--  <th ><strong>frozen time</strong></th>
+                <th ><strong>unfrozen time</strong></th> -->
+            <th><strong>Memory usage</strong></th>
+            <th><strong>CommandRunner version</strong></th>
+            <th><strong>Load</strong></th>
+
+            <th><strong>Status</strong></th>
+            <th><strong>Enabled</strong></th>
+            <th><strong>Dump</strong></th>
+            
+
+         </tr>
+      </thead>
+      {% for judgeserver in judgeservers %}
+      <tr>
+
+         <td>{{forloop.counter}}</td>
+         <td>
+            <a href="{% url 'edit_judgeserver' judgeserver.id %}">
+
+               {{judgeserver.address}}
+         </td>
+         </a>
+         <td>{{judgeserver.server_name}}</td>
+         <td>{{judgeserver.server_cpu_number}}</td>
+         <!--  <td >{{i.frozen_time}}</td>
+                <td >{{i.unfrozen_time}}</td> -->
+         <td>{{judgeserver.server_cpu_usage}}</td>
+         <td>{{judgeserver.server_memory_usage}}</td>
+         <td>{{judgeserver.command_runner_version}}</td>
+         <td>{{judgeserver.load}}</td>
+         {% if judgeserver.status == "normal" %}
+         <td style="color:green;">
+            {{judgeserver.status}}
+         </td>
+         {% elif judgeserver.status == "abnormal" %}
+         <td style="color:red;">
+            {{judgeserver.status}}
+         </td>
+         {% endif %}
+         {% if judgeserver.is_enabled %}
+         <td style="color:green;">
+            {{judgeserver.is_enabled}}
+         </td>
+         {% else %}
+         <td style="color:red;">
+            {{judgeserver.is_enabled}}
+         </td>
+         {% endif %}
+         <td>
+         <a class="btn btn-danger" href="{% url 'dump_judgeserver' judgeserver.id  %}"
+            style="margin-left:15px;color:#fff;">dump</a>
+         </td>
+      </tr>
+
+      {% endfor %}
+   </table>
+
+</div>
+
+
+{% endblock %}
