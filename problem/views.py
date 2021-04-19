@@ -10,13 +10,16 @@ from authentication.validators import validate_testcase_in_file_extension, valid
     validate_problem_file_extension
 from django.core.exceptions  import ValidationError
 from django.core.files.uploadedfile import InMemoryUploadedFile
-import  os, sys
+import  os, sys, requests
 from zipfile import ZipFile, BadZipFile
 from io import BytesIO
 from django.db import IntegrityError
 from contest.models import Contest
 from public.models import Statistics
 from competitive.models import Submit
+from judgeserver.models import JudgeServer
+from judgeserver.views import testcase_transfer_to_server
+
 
 @login_required
 @admin_auth
@@ -36,7 +39,7 @@ def addProblem(request):
 
             # if post.is_public:
             create_statistics(post) # create statistics for this problem
-
+            server_testcase_add(post)
             messages.success(request, "problem "+post.title+" was added successfully.")
             return redirect('testcase', post.pk)
     else:
@@ -60,6 +63,39 @@ def addProblemZIP(request):
     return render(request, 'add_problem.html', {'form': form, 'form1': form1, 'pro': 'hover'})
 
 
+def server_testcase_add(problem):
+    active_server = {i for i in JudgeServer.objects.filter(status="Normal", is_enabled=True)}
+
+    for server in active_server:
+        try:
+            testcase_transfer_to_server(server, problem)
+            server.problem.add(problem)
+            server.save()
+        except:
+            pass
+
+
+def server_testcase_edit(problem):
+    server_list = {i for i in JudgeServer.objects.all()}
+    active_server = {i for i in JudgeServer.objects.filter(status="Normal", is_enabled=True)}
+    down_server = server_list.difference(active_server)
+
+    for server in active_server:
+        if not problem in server.problem.all():
+            continue
+        try:
+            requests.post(server.address + "/remove_testcase",  data={'testcase_id': str(problem.id)})
+            testcase_transfer_to_server(server, problem)
+        except:
+            down_server.add(server)
+    
+    for server in down_server:
+        if not problem in server.problem.all():
+            continue
+        server.problem.remove(problem)
+        server.save()
+    
+    
 @login_required
 @admin_auth_and_problem_exist
 def edit_problem(request, problem_id):
@@ -83,6 +119,7 @@ def edit_problem(request, problem_id):
             #         stat.save()
             #     except Statistics.DoesNotExist:
             #         pass
+            
             messages.success(request, "The problem "+problem.title+" was update successfully.") 
             return redirect('testcase', problem_id)    
                 
@@ -116,6 +153,13 @@ def delete_problem_done(request, problem_id):
         contest.last_update = timezone.now()
         contest.save()
     problem.delete()
+
+    server_list = JudgeServer.objects.filter(status="Normal", is_enabled=True)
+    for server in server_list:
+        try:
+            requests.post(server.address + "/remove_testcase",  data={'testcase_id': str(problem.id)})
+        except:
+            pass
 
     messages.success(request, "The problem " + problem.title + " was deleted successfully.")
     return redirect('problem_list')
@@ -162,6 +206,7 @@ def testcase(request, problem_id):
         if error_list:
             messages.warning(request, "Unsupported file extension in "+ ', '.join(error_list))
         url = request.META['HTTP_REFERER']
+        server_testcase_edit(problem)
         return redirect('testcase', problem_id)
     else:
         form = AddTestcase()
@@ -182,7 +227,9 @@ def delete_testcase_done(request, testcase_id):
     os.system('rm '+test_case.input.path)
     os.system('rm '+test_case.output.path)
     test_case.delete()
+    server_testcase_edit(test_case.problem)
     messages.success(request, "Testcase " + test_case.name + " was deleted successfully.")
+
     return redirect('testcase', test_case.problem.pk)
     
 
@@ -305,6 +352,8 @@ def handle_zip_file(request, problem_zip):
 
                 # if problem.is_public:
                 create_statistics(problem) # create statistics for this problem
+    
+                server_testcase_add(problem)
 
                 messages.success(request, "problem "+problem.title+" was added successfully.")
                 sample_test_case(request, zip, problem)   

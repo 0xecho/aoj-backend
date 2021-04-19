@@ -137,8 +137,8 @@ class ChooseJudgeServer:
 
    def __enter__(self) -> [JudgeServer, None]:
       with transaction.atomic():
-         servers = JudgeServer.objects.select_for_update().filter(is_enabled=True).order_by("load")
-         servers = [s for s in servers if s.status == "normal"]
+         servers = JudgeServer.objects.select_for_update().filter(status="Normal", is_enabled=True).order_by("load")
+         servers = [s for s in servers]
          for server in servers:
             # if server.load <= server.server_cpu_number * 2:
             server.load = F("load") + 1
@@ -159,63 +159,66 @@ class ChooseJudgeServer:
 @app.task
 def judge_background(submission_id):
    submission = Submit.objects.get(id=submission_id)
-   print(submission.language)
+   # print(submission.language)
    # post = form.save(commit=False)
   
    with ChooseJudgeServer() as server:
       url = server.address + "/judge"
-      try:
-         with open(submission.submit_file.path, 'r') as f:
-            content = f.read()
-         # kwargs = {"headers": {"X-Judge-Server-Token": 'amir'}}
-         kwargs = {}
-         temp_data= {
-            # "headers": {"X-Judge-Server-Token": 'amir'},
-            "src_code": content,
-            "testcase_id": str(submission.problem.id),
-            # "max_cpu_time": int(10000 * submission.problem.time_limit),
-            "max_real_time": int(1000000 * submission.problem.time_limit),
-            "max_memory": submission.problem.memory_limit,
-            "language": submission.language.name,
-            # "language": 'cpp'
-         }
-         # print(temp_data)
-         kwargs['json'] = temp_data
+      # try:
+      with open(submission.submit_file.path, 'r') as f:
+         content = f.read()
+      # kwargs = {"headers": {"X-Judge-Server-Token": 'amir'}}
+      kwargs = {}
+      temp_data= {
+         # "headers": {"X-Judge-Server-Token": 'amir'},
+         "src_code": content,
+         "testcase_id": str(submission.problem.id),
+         "max_cpu_time": int(1000*submission.problem.time_limit),
+         # "max_real_time": int(1000*submission.problem.time_limit),
+         "max_memory": submission.problem.memory_limit,
+         "language": submission.language.name,
+         # "language": 'cpp'
+      }
+      # print(temp_data)
+      kwargs['json'] = temp_data
+      
+      judge_server_result = requests.get(url, **kwargs).json()
+      
+      # print('hello')
+      print(type(judge_server_result))
+      print(judge_server_result)
+      print(judge_server_result['success'])
+      print()
+
+      if judge_server_result['success']:
+         for item in judge_server_result['data']:
+            if item['result'] == 0:
+               total_result = 'Correct'
+               continue
+            elif item['result'] == 2 or item['result'] == 3:
+               total_result = 'Time Limit Exceeded'
+               break
+            elif item['result'] == 4:
+               total_result = 'Memory Limit Exceeded'
+               break
+            elif item['result'] == 5:
+               total_result = 'Runtime Error'
+               break
+            elif item['result'] == -1:
+               total_result = 'Wrong Answer'
+               break
+         submission.result = total_result
+      elif judge_server_result['error'] == 'CompileError':
+         submission.result = "Compiler Error"
+      elif judge_server_result['error'] == 'Exception':
+         submission.result = "Runtime Error"
          
-         judge_server_result = requests.get(url, **kwargs).json()
-         
-         # print('hello')
-         # print(type(judge_server_result))
-         # print(judge_server_result)
-         # print(judge_server_result['success'])
-         # print()
-         if judge_server_result['success']:
-            for item in judge_server_result['data']:
-               if item['result'] == 0:
-                  total_result = 'Correct'
-                  continue
-               elif item['result'] == 2 or item['result'] == 3:
-                  total_result = 'Time Limit Exceeded'
-                  break
-               elif item['result'] == 4:
-                  total_result = 'Memory Limit Exceeded'
-                  break
-               elif item['result'] == 5:
-                  total_result = 'Runtime Error'
-                  break
-               elif item['result'] == -1:
-                  total_result = 'Wrong Answer'
-                  break
-            submission.result = total_result
-         elif judge_server_result['error'] == 'CompileError':
-            submission.result = "Compile Error"
-            
-      except Exception as e:
-         # result = judge(file_name=post.submit_file.path,
-         #             problem=post.problem, language=post.language, submit=post)
-         # post.result = result
-         # print(e)
-         pass
+      # except Exception as e:
+      #    result = judge(file_name=submission.submit_file.path,
+      #                problem=submission.problem, language=submission.language, submit=submission)
+      #    submission.result = result
+      #    print(e)
+         # pass
 
 
    submission.save()

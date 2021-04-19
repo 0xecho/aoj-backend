@@ -631,8 +631,18 @@ def submit(request):
                 post.result = 'Judging'
                 post.save()
                 
-                judge_rank_update(post)
-                judge_background.apply_async([post.id])
+                try:
+                    judge_rank_update(post)
+                    judge_background.apply_async([post.id])
+
+                except Exception:
+                    result = judge(file_name=post.submit_file.path,
+                                problem=post.problem, language=post.language, submit=post)
+                    post.result = result
+                    post.save()
+                    rank_update(post)
+                    update_statistics(post)
+
 
                 # # multiprocessing
                 # # pool = multiprocessing.Pool(processes=4)
@@ -1031,7 +1041,7 @@ def calculate_problem_score_jury(score_cache_jury, total_problems, contest_start
                 score_vs_problem[pro] = (
                     score.submission, time, "#2ef507", pro.id)
         elif score.judging:
-            score_vs_problem[pro] = (score.punish + score.judging, -1, "#EFF542")
+            score_vs_problem[pro] = (score.punish + score.judging, -1, "#EFF542", pro.id)
         elif score.punish:
             score_vs_problem[pro] = (score.submission, -1, "#F67B51", pro.id)
     problem_display = []
