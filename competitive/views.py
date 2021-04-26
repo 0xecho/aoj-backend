@@ -754,10 +754,17 @@ def submit(request):
         contest_title = None
         start_time = None
 
+    if current_contest:
+        self_scoreboard = self_calculate_scoreboard(request, current_contest_id)
+        total_problems = current_contest.problem.all().order_by('short_name')
+    else:
+        self_scoreboard = []
+        total_problems = []
     return render(request, 'submit.html',
                   {'form': form, 'form1': form1, 'all_current_contest_submits': all_current_contest_submits,
                    'current_contest': current_contest, 'qs_json': qs_json,
-                   'contest_title': contest_title, 'start_time': start_time, 'submit': 'hover'
+                   'contest_title': contest_title, 'start_time': start_time,
+                   'self_scoreboard': self_scoreboard, 'total_problems': total_problems, 'submit': 'hover'
                    }
                   )
 
@@ -874,10 +881,18 @@ def public_submit_editor(request):
         contest_title = None
         start_time = None
 
+    if current_contest:
+        self_scoreboard = self_calculate_scoreboard(request, current_contest_id)
+        total_problems = current_contest.problem.all().order_by('short_name')
+    else:
+        self_scoreboard = []
+        total_problems = []
+
     return render(request, 'submit.html',
                   {'form': form, 'form1': form1, 'all_current_contest_submits': all_current_contest_submits,
                    'current_contest': current_contest, 'qs_json': qs_json,
-                   'contest_title': contest_title, 'start_time': start_time, 'submit': 'hover'
+                   'contest_title': contest_title, 'start_time': start_time,
+                   'self_scoreboard': self_scoreboard, 'total_problems': total_problems, 'submit': 'hover'
                    }
                   )
 
@@ -1005,11 +1020,11 @@ def calculate_problem_score_public(score_cache_public, total_problems, contest_s
             if score.pending:
                 if score.punish:
                     score_vs_problem[pro] = (
-                        "%d+%d" % (score.punish, score.pending + score.judging), -1, "#EFF542")
+                        "%d+%d" % (score.punish, score.pending + score.judging), -1, "#A110A1")
                 else:
-                    score_vs_problem[pro] = (score.pending + score.judging, -1, "#EFF542")
+                    score_vs_problem[pro] = (score.pending + score.judging, -1, "#A110A1")
             else:
-                score_vs_problem[pro] = (score.punish, -1, "#EFF542")
+                score_vs_problem[pro] = (score.punish + score.judging, -1, "#A110A1")
         elif score.pending:
             if score.punish:
                 score_vs_problem[pro] = (
@@ -1041,7 +1056,7 @@ def calculate_problem_score_jury(score_cache_jury, total_problems, contest_start
                 score_vs_problem[pro] = (
                     score.submission, time, "#2ef507", pro.id)
         elif score.judging:
-            score_vs_problem[pro] = (score.punish + score.judging, -1, "#EFF542", pro.id)
+            score_vs_problem[pro] = (score.punish + score.judging, -1, "#A110A1", pro.id)
         elif score.punish:
             score_vs_problem[pro] = (score.submission, -1, "#F67B51", pro.id)
     problem_display = []
@@ -1888,3 +1903,67 @@ def multi_rejudge(request, problem_id, contest_id, user_id):
 
     return render(request, 'single_user_rejudge.html', {'submit': specific_submissions, 'contest_id': specific_submissions[0].contest.pk, 'rejudge': 'hover'})
 
+
+
+def self_calculate_scoreboard(request, contest_id):
+    current_contest = Contest.objects.get(pk=contest_id)
+    contest_start_time = current_contest.start_time
+    total_problems = current_contest.problem.all().order_by('short_name')
+    q = Q(problem=None)
+    for pro in current_contest.problem.all():
+        q = q | Q(problem=pro)
+
+    now = timezone.now()
+    rank_cache = RankcacheJury.objects.filter(contest=current_contest)
+    score_cache = ScorecacheJury.objects.filter(
+            q, rank_cache__contest=current_contest)
+
+    user_score_cache = score_cache.filter(rank_cache__user=request.user)
+    first_solver_list = first_solver(
+        score_cache, total_problems, contest_start_time)
+
+    problem_display = calculate_problem_score_jury(
+        user_score_cache, total_problems, contest_start_time, first_solver_list)
+    flag = request.user.campus.flag()
+
+    try:
+        user_rank_cache = rank_cache.get(user=request.user)
+    except RankcacheJury.DoesNotExist:
+        return [['?', 0, 0, request.user.name, request.user.campus.name, flag, problem_display]]
+
+    try:
+        user_point = float(user_rank_cache.point)
+        punish_time = user_rank_cache.punish_time
+    except:
+        pass
+
+    if user_point == int(user_point):
+        user_point = int(user_point)
+    
+    rank = self_rank(request.user, rank_cache, score_cache, current_contest)
+    user_row = [[rank, user_point, punish_time, request.user.name, request.user.campus.name, flag, problem_display]]
+    return user_row
+
+    
+def self_rank(user, rank_cache, score_cache, contest):
+    frozen_time = contest.frozen_time
+    if frozen_time:
+        if contest.frozen_time < timezone.now() and timezone.now() < contest.unfrozen_time:
+            return '?'
+    rank = []
+    for user_rank_cache in rank_cache:
+        user_score_cache = score_cache.filter(rank_cache__user=user)
+        last_submit_time = last_submit(
+            user_score_cache, contest.end_time, contest.start_time)
+        rank.append((-user_rank_cache.point, user_rank_cache.punish_time, last_submit_time, user_rank_cache.user.id))
+    rank.sort()
+    count = 1
+    if(rank[0][-1] == user.id):
+        return 1
+    for i in range(1, len(rank)):
+        if rank[i][:3] != rank[i-1][:3]:
+            count = i+1
+        if rank[i][-1] == user.id:
+            return count
+        
+    return '?' # the user has no any submission

@@ -5,6 +5,8 @@
 {% load static %} 
 {% load js %} 
 
+<link href="{% static 'assets/css/style.css' %}" rel="stylesheet"  type="text/css" />
+
 <style>
     .dropzone .dz-clickable {
         display: flex;
@@ -80,7 +82,7 @@
         display: flex;
         flex-wrap: wrap;
         justify-content: space-between;
-        margin-bottom: 2.4em;
+        margin-bottom: 0.4em;
         /* width: 100%; */
     }
     .cu-submit-btn {
@@ -123,7 +125,7 @@
     .file-upload {
         background-color: #EFEFEF;
         padding: 1.6em 2em;
-        margin-bottom: 2em;
+        margin-bottom: 1em;
         border-radius: 0.4em;
     }
 
@@ -164,7 +166,60 @@
 
 <div class="wrapper-2">
 
-    {% if request.session.start_contest_contestant %}
+{% if request.session.start_contest_contestant %}
+    <!-- ##################### -->
+    <div class="scoreboard" style="margin-left:0; margin-bottom: 3em;">
+        <table style="border-collapse: separate;">
+            <tr >
+                <thead>
+                    <th class="th bottom right">RANK </th>
+                    <th class="th bottom right">TEAM</th>
+                    <th class="th bottom right score">∑</th>
+                    <th class="th bottom right score">PEN</th>
+                    {% for i in total_problems%}
+                        <th class="th bottom score">
+                            <a href="{{i.pdf.url}}"> {{i.short_name}} <span style="height: 15px; width: 15px; background-color: {{i.ballon}}; 
+                                border-radius: 50%; display: inline-block;"></span> </a> </th>
+                    {%endfor%}
+                
+                </thead>
+            </tr>
+            {% if self_scoreboard%}
+                {% for rank, point, punish_time, teamname, univname, flag, cell_data in self_scoreboard %}
+                <tr>
+                    <tbody>                               
+                        <td class="td right"> {{rank}} </td>
+                        <td class="td right team">
+                            <img src="{% static flag %}">
+                            <div id="teamname"> {{teamname}} </div>
+                            <div id="univname"> {{univname}}</div>
+                        </td>
+                        <td class="td right score">{{point}}</td>
+                        <td class="td right score">{{punish_time}}</td>
+                        {% for try, time, color, prob_id in cell_data %}
+                            {% if not color == '#ffffff' %}
+                                <td class="td score" style="background-color: {{ color }}">
+                                    
+                                {% if not time == -1 %}
+                                    <div id="time" > {{ time }} </div>
+                                {% endif %}
+                                {% if try == 1 %}
+                                    <div id="try"> {{ try }} try </div> </td>
+                                {% elif not try == 0 %}
+                                    <div id="try"> {{ try }} tries </div> </td>
+                                {% endif %}
+                            {% else %}
+                            <td class="td score"> <div id="time" > </div><div id="try">  </div> </td>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </tr>
+                {% endfor %}
+            {% endif %}
+        </table>
+    </div>
+    <!-- ##################### -->
+
     <div class="file-upload">
         <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
@@ -182,7 +237,7 @@
 
     <!---------------------------------------------->
     <div class="editor-nav">
-        <button type="button" id="editor-btn" class="cu-btn">Open editor</button>
+        <button type="button" id="editor-btn" class="cu-btn"style="width: 12em;" >Open editor</button>
         <select id="editor-theme" name="editor-theme">
             <option value="chrome">Chrome</option>
             <option value="dracula">Dracula</option>
@@ -308,6 +363,8 @@
                     <td>{{i.language}}</td>
                     {%if i.result == "Correct"%}
                     <td style="color:green;">{{i.result}}</td>
+                    {%elif i.result == "Judging"%}
+                    <td style="color:rgb(161, 16, 161);">{{i.result}}</td>
                     {%elif i.result == 'Too Late'%}
                     <td style="color:gray;">{{i.result}}</td>
                     {%else%}
@@ -320,7 +377,7 @@
                        <div class="submitted-code-{{ i.id }}">
                             {% comment %} <div>
                                 <p>Explanation</p>
-                                <textarea cols="48" rows="5">Hello world</textarea>
+                                <textarea cols="48" rows="5"></textarea>
                             </div> {% endcomment %}
                             <p>Source Code</p>
 

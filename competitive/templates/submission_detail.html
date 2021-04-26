@@ -25,6 +25,8 @@
             <td > <strong>Result: </strong></td>
             {% if submit.result == "Correct" %}
             <td style="color: green;"> {{submit.result}} </td>
+            {%elif submit.result == "Judging"%}
+                <td style="color:rgb(161, 16, 161);">{{i.result}}</td>
             {% else %}
             <td style="color: red;"> {{submit.result}} </td>
             {% endif %}

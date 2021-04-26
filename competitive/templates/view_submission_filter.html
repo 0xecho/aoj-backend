@@ -35,6 +35,8 @@
                 <td >{{i.language}}</td>
                 {%if i.result == 'Correct'%}
                     <td style="color:green;">{{i.result}}</td>
+                {%elif i.result == "Judging"%}
+                    <td style="color:rgb(161, 16, 161);">{{i.result}}</td>    
                 {%else%}
                     <td style="color:red;">{{i.result}}</td>
                 {%endif%}
