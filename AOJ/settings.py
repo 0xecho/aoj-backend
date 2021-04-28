@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 import os
 from dotenv import load_dotenv
 from django.contrib.messages import constants as messages
+load_dotenv()
 
 MESSAGE_LEVEL = messages.DEBUG
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
