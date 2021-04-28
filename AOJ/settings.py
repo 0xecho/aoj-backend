@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 
 import os
+from dotenv import load_dotenv
 from django.contrib.messages import constants as messages
 
 MESSAGE_LEVEL = messages.DEBUG
@@ -21,15 +22,15 @@ MEDIA_URL = '/media/'
 
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'rapiandelus@gmail.com'
-EMAIL_HOST_PASSWORD = '8andalus'
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER") 
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD") 
 EMAIL_USE_TLS = True
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '&%lwmqytwig2o10=6hdvz9s%8whm8ie4yjprs0ne38@sxc6-qx'
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -109,10 +110,10 @@ DATABASES = {
     'default': {
 
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'ethcpc2',
-        'USER': 'postgres',
-        'PASSWORD': 'andalus',
-        'HOST': '127.0.0.1',
+        'NAME': os.environ.get("DB_NAME") ,
+        'USER': os.environ.get("DB_USER") ,
+        'PASSWORD': os.environ.get("DB_PASSWORD") ,
+        'HOST': os.environ.get("DB_HOST") ,
         'PORT': '5432',
     }
 }
