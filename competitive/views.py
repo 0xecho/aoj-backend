@@ -255,9 +255,11 @@ def judge(file_name, problem, language, submit, rejudge=False):
                     pass
         else:
             try:
-                user_output = File(open(user_output_text_path, 'r'))
-                insert = TestcaseOutput(
-                    output_file=user_output, test_case=each, submit=submit)
+                # user_output = File(open(user_output_text_path, 'r'))
+                # insert = TestcaseOutput(
+                #     output_file=user_output, test_case=each, submit=submit)
+                insert = TestcaseOutput(test_case=each, submit=submit)
+                  
                 insert.save()
             except IntegrityError:
                 pass
@@ -626,6 +628,7 @@ def submit(request):
 
                 post.contest_id = current_contest_id
                 post.submit_file = None
+                post.server_id = 1
                 post.save()
                 post.submit_file = request.FILES.get('submit_file')
                 post.result = 'Judging'
@@ -711,6 +714,9 @@ def submit(request):
                 # rank_update(post)
                 # update_statistics(post)
                 return redirect('submit')
+            # else:
+            #     form = SubmitAnswer()
+
         else:
             form = SubmitAnswer()
             form.fields['problem'].queryset = problem_list
@@ -800,6 +806,7 @@ def public_submit_editor(request):
                 pro =  Problem.objects.get(pk=int(request.POST['problem']))
                 post.problem = pro
                 post.submit_file = None
+                post.server_id = 1
                 post.save()
 
                 source = request.POST['source']
@@ -1511,6 +1518,7 @@ def view_submission_filter(request):
 def submission_detail(request, submit_id):
     refresh_contest_session_admin(request)  # refersh the contest session
     submit = Submit.objects.get(pk=submit_id)
+    # print(submit.host)
     submit_contest_time = submit.submit_time - submit.contest.start_time
 
     answer_file = submit.submit_file
@@ -1534,7 +1542,8 @@ def submission_detail(request, submit_id):
     all_user_answers = {}
     all_correct_answers = {}
     for i in all_user_testcases:
-        user_answer_file = i.output_file
+        # user_answer_file = i.output_file
+        user_answer_file = ""
         all_user_answers[i.test_case.id] = read_from_file(
             user_answer_file).strip().split('\n')
     for j in testcase_correct_answer:
@@ -1566,8 +1575,9 @@ def submission_detail(request, submit_id):
             pass
         testcase_output_file = (url, file_path)
 
-        url = TestcaseOutput.objects.get(
-            test_case=i.test_case, submit=submit).output_file.url
+        # url = TestcaseOutput.objects.get(
+        #     test_case=i.test_case, submit=submit).output_file.url
+        url=""
         file_path = url
         try:
             index = file_path[::-1].index('/')

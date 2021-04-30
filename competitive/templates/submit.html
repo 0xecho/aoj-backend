@@ -219,8 +219,24 @@
         </table>
     </div>
     <!-- ##################### -->
-
+    {% if form.non_field_errors %}
+        <table class="form-error">
+            {% for error in form.non_field_errors%}
+            <tr><td><b> {{ error}}</b></td></tr>
+            {% endfor %}
+        </table>
+        <br>
+    {% endif %}  
+    {% if form1.non_field_errors %}
+        <table class="form-error">
+            {% for error in form1.non_field_errors%}
+            <tr><td><b> {{ error}}</b></td></tr>
+            {% endfor %}
+        </table>
+        <br>
+    {% endif %}  
     <div class="file-upload">
+        
         <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="cu-form-group">

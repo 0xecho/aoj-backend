@@ -6,6 +6,7 @@ from time import time
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 from django.utils import timezone
+from judgeserver.models import JudgeServer
 # Create your models here.
 
 result_lists=(('Correct', 'Correct'), ('Time Limit Exceeded', 'Time Limit Exceeded'), ('Wrong Answer', 'Wrong Answer'), 
@@ -18,6 +19,12 @@ def testcase_output_directory_upload(instance, filename):
     testcase_title = instance.test_case.name.replace(' ', '')
     # filename = filename.replace(' ','')
     return 'file/user_{0}/{1}/{2}/output_{3}.out'.format(instance.submit.user.id, problem_title, instance.submit.id, testcase_title)
+
+
+def testcase_output_path(instance):
+    return "abcd"
+    print('{0}/AOJ/working_space/'.format(instance.submit.server.address))
+    return '{0}/AOJ/working_space/'.format(instance.submit.server.address)
 
 
 def submit_file_directory_upload(instance, filename):
@@ -47,21 +54,23 @@ class Submit(models.Model):
     submit_file = models.FileField(upload_to=submit_file_directory_upload)
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE, null=True, blank=True)
     submit_time = models.DateTimeField()
-
+    server = models.ForeignKey(JudgeServer, on_delete=models.CASCADE)
+    # output_path = 
     def __str__(self):
         return self.problem.title + ' by ' + self.user.username + ' for _sid '+str(self.pk)
    
 
 class TestcaseOutput(models.Model):
-    output_file = models.FileField(upload_to=testcase_output_directory_upload)
+    # output_file = models.FileField(upload_to=testcase_output_directory_upload)
+    # output_file = models.FilePathField(path="/home/andalus")
     test_case = models.ForeignKey(TestCase, on_delete=models.CASCADE)
     submit = models.ForeignKey(Submit, on_delete=models.CASCADE)
     result = models.CharField(max_length=200, choices=result_lists)                                       
-    execution_time = models.DecimalField(decimal_places=8, max_digits=12, default=0.00, validators=[MinValueValidator(Decimal('0.00'))])
-    memory_usage = models.DecimalField(decimal_places=8, max_digits=12, default=0.00, validators=[MinValueValidator(Decimal('0.00'))])
+    execution_time = models.DecimalField(decimal_places=8, max_digits=22, default=0.00, validators=[MinValueValidator(Decimal('0.00'))])
+    memory_usage = models.DecimalField(decimal_places=8, max_digits=22, default=0.00, validators=[MinValueValidator(Decimal('0.00'))])
 
     class Meta:
-        unique_together = ('test_case', 'output_file')
+        unique_together = ('test_case', 'submit')
 
     def __str__(self):
         return self.submit.__str__() + ' test case ' + self.test_case.name 

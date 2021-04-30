@@ -21,7 +21,7 @@ def judgeserver_list(request):
    judgeservers = JudgeServer.objects.all()
    for judgeserver in judgeservers:
       try:
-         info = requests.get(judgeserver.address + '/info').json()
+         info = requests.get(judgeserver.address + '/info', timeout=10).json()
          judgeserver.server_name = info['hostname']
          judgeserver.server_cpu_number = info['cpu_core']
          judgeserver.server_cpu_usage = info['cpu']

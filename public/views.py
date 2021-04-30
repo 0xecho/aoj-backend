@@ -75,6 +75,7 @@ def public_submit(request):
             post.submit_time = timezone.now()
             post.user = request.user
             post.submit_file = None
+            post.server_id = 1
             post.save()
 
             post.submit_file = request.FILES.get('submit_file')
@@ -118,6 +119,7 @@ def public_submit_with_editor(request):
             pro =  Problem.objects.get(pk=int(request.POST['problem']))
             post.problem = pro
             post.submit_file = None
+            post.server_id = 1
             post.save()
 
             source = request.POST['source']

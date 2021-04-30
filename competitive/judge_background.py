@@ -1,16 +1,18 @@
 # import dramatiq
 from AOJ.celery import app
 from django.utils import timezone
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import F
 from control.models import Setting
-
+from django.core.files import File
+import os
 from .forms import SubmitAnswer
 import requests
 from .models import Submit, Contest
 from judgeserver.models import JudgeServer
 from problem.views import update_statistics
-from competitive.models import RankcacheJury, RankcachePublic, ScorecacheJury, ScorecachePublic
+from competitive.models import RankcacheJury, RankcachePublic, ScorecacheJury, ScorecachePublic, TestcaseOutput
+from problem.models import TestCase
 
 def time_gap(submit_time, contest_start_time):
     td = submit_time - contest_start_time
@@ -131,6 +133,36 @@ def rank_update(submit):
    this_contest.last_update = timezone.now()
    this_contest.save()   
 
+
+def testcase_output(path_list, result_list, submit):
+   result_dict ={0: 'Correct', 2: 'Time Limit Exceeded', 3: 'Time Limit Exceeded',
+                  -1: 'Wrong Answer', 4: 'Memory Limit Exceeded', 5: 'Run Time Error'}
+
+   testcase_info = {}
+   server = submit.server.address
+   for test in result_list:
+      cpu_time = test['cpu_time']
+      memory = test['memory']
+      real_time = test['real_time']
+      result = result_dict[test['result']]
+      testcase_name = test['testcase']
+      user_output_path = path_list[testcase_name]
+      user_output_path = os.path.join(server, user_output_path)
+      # print(user_output_path)
+      try:
+         testcase_instance = TestCase.objects.get(name=testcase_name, problem=submit.problem)
+         # user_output = File(open(user_output_path, 'r'))
+         insert = TestcaseOutput(test_case=testcase_instance, submit=submit,
+            execution_time=cpu_time, memory_usage=memory)
+
+         insert.save()
+
+      except (TestCase.DoesNotExist, IntegrityError, FileNotFoundError) as e:
+         print(e)
+
+
+
+
 class ChooseJudgeServer:
    def __init__(self):
       self.server = None
@@ -164,20 +196,23 @@ def judge_background(submission_id):
   
    with ChooseJudgeServer() as server:
       url = server.address + "/judge"
+      
       # try:
       with open(submission.submit_file.path, 'r') as f:
          content = f.read()
       # kwargs = {"headers": {"X-Judge-Server-Token": 'amir'}}
       kwargs = {}
+      memory_limit = submission.problem.memory_limit
+      if memory_limit: memory_limit = int(round(float(memory_limit)))
       temp_data= {
          # "headers": {"X-Judge-Server-Token": 'amir'},
          "src_code": content,
          "testcase_id": str(submission.problem.id),
          "max_cpu_time": int(1000*submission.problem.time_limit),
          # "max_real_time": int(1000*submission.problem.time_limit),
-         "max_memory": submission.problem.memory_limit,
+         "max_memory": memory_limit,
          "language": submission.language.name,
-         # "language": 'cpp'
+         "max_output_size": int(submission.problem.max_output_size),
       }
       # print(temp_data)
       kwargs['json'] = temp_data
@@ -185,10 +220,13 @@ def judge_background(submission_id):
       judge_server_result = requests.get(url, **kwargs).json()
       
       # print('hello')
-      print(type(judge_server_result))
-      print(judge_server_result)
-      print(judge_server_result['success'])
-      print()
+      # print(type(judge_server_result))
+      # print(judge_server_result)
+      # print(judge_server_result['success'])
+      # print()
+
+      submission.server = server
+      submission.save()
 
       if judge_server_result['success']:
          for item in judge_server_result['data']:
@@ -208,11 +246,14 @@ def judge_background(submission_id):
                total_result = 'Wrong Answer'
                break
          submission.result = total_result
+         
+         testcase_output(judge_server_result["user_output_path"], judge_server_result['data'], submission) 
       elif judge_server_result['error'] == 'CompileError':
          submission.result = "Compiler Error"
       elif judge_server_result['error'] == 'Exception':
          submission.result = "Runtime Error"
-         
+      
+      # submission.result = "145"
       # except Exception as e:
       #    result = judge(file_name=submission.submit_file.path,
       #                problem=submission.problem, language=submission.language, submit=submission)
