@@ -1518,9 +1518,14 @@ def view_submission_filter(request):
 def submission_detail(request, submit_id):
     refresh_contest_session_admin(request)  # refersh the contest session
     submit = Submit.objects.get(pk=submit_id)
-    # print(submit.host)
     submit_contest_time = submit.submit_time - submit.contest.start_time
 
+    kwargs = {}
+    temp_data={'testcase_id': str(submit.problem.id), "sudmission_dir": submit.output_path}                            
+    kwargs['json'] = temp_data
+    url = submit.server.address + "/submission_output"
+    sample_user_output = requests.get(url, **kwargs).json()
+      
     answer_file = submit.submit_file
     submit_file = read_source_code(answer_file)
     language_mode = submit.language.editor_mode
@@ -1534,30 +1539,36 @@ def submission_detail(request, submit_id):
     # detail about the test cases
     submit_detail = []
 
-    all_user_testcases = TestcaseOutput.objects.filter(
-        submit=submit).order_by('test_case')
+    all_user_testcases = TestcaseOutput.objects.filter(submit=submit).order_by('test_case')
     run_testcases = [i.test_case for i in all_user_testcases]
-    testcase_correct_answer = TestCase.objects.filter(
-        problem=submit.problem).order_by('name')
+    testcase_correct_answer = TestCase.objects.filter(problem=submit.problem).order_by('name')
     all_user_answers = {}
     all_correct_answers = {}
-    for i in all_user_testcases:
-        # user_answer_file = i.output_file
-        user_answer_file = ""
-        all_user_answers[i.test_case.id] = read_from_file(
-            user_answer_file).strip().split('\n')
-    for j in testcase_correct_answer:
-        correct_answer_file = j.output
-        all_correct_answers[j.id] = read_from_file(
-            correct_answer_file).strip().split('\n')
-    for i in all_user_testcases:
-        execution_time = float(i.execution_time)
+
+    for each in all_user_testcases:
+        try:
+            all_user_answers[each.test_case.id] = sample_user_output[each.test_case.name]["data"]
+        except KeyError:
+            all_user_answers[each.test_case.id] = ""
+
+    for each in testcase_correct_answer:
+        all_correct_answers[each.id] = read_from_file(each.output).strip().split('\n')
+    
+    for each in all_user_testcases:
+        execution_time = float(each.execution_time)
         if not execution_time == 0:
             execution_time = ('%f' % execution_time)
-        testcase_id = i.test_case.id
-        result = i.result
 
-        url = i.test_case.input.url
+        memory_usage = float(each.memory_usage)
+        if memory_usage == int(memory_usage):
+            memory_usage = int(each.memory_usage)
+        elif not memory_usage == 0:
+            memory_usage = ('%f' % memory_usage)
+            
+        testcase_id = each.test_case.id
+        result = each.result
+
+        url = each.test_case.input.url
         file_path = url
         try:
             index = file_path[::-1].index('/')
@@ -1566,7 +1577,7 @@ def submission_detail(request, submit_id):
             pass
         testcase_input_file = (url, file_path)
 
-        url = i.test_case.output.url
+        url = each.test_case.output.url
         file_path = url
         try:
             index = file_path[::-1].index('/')
@@ -1575,20 +1586,22 @@ def submission_detail(request, submit_id):
             pass
         testcase_output_file = (url, file_path)
 
-        # url = TestcaseOutput.objects.get(
-        #     test_case=i.test_case, submit=submit).output_file.url
-        url=""
-        file_path = url
         try:
-            index = file_path[::-1].index('/')
-            file_path = file_path[::-1][:index][::-1]
-        except Exception:
-            pass
-        user_output_file = (url, file_path)
+            url = os.path.join(submit.server.address, sample_user_output[each.test_case.name]["path"])
+            file_path = url
+            try:
+                index = file_path[::-1].index('/')
+                file_path = file_path[::-1][:index][::-1]
+            except Exception:
+                pass
+            user_output_file = (url, file_path)
+        except KeyError:
+            user_output_file = (None, None)
 
         answer_compare = []
         x = all_correct_answers[testcase_id]
         y = all_user_answers[testcase_id]
+        # print(x, y, x==y)
         for k in range(min(len(x), len(y))):
             correct_line = x[k].split()
             user_line = y[k].split()
@@ -1614,13 +1627,13 @@ def submission_detail(request, submit_id):
         for k in range(len(y), len(x)):
             answer_compare.append((x[k], '', 'Wrong Answer'))
         submit_detail.append((testcase_id, result, answer_compare, testcase_input_file,
-                              testcase_output_file, user_output_file, execution_time))
+                              testcase_output_file, user_output_file, execution_time, memory_usage))
     for i in testcase_correct_answer:
         if i in run_testcases:
             continue
         else:
             submit_detail.append(
-                (i.id, "Not Run", [], (None, None), (None, None), (None, None), 0))
+                (i.id, "Not Run", [], (None, None), (None, None), (None, None), 0, 0))
     base_page = check_base_site(request)
     context = {'submit': submit, 'submit_file': submit_file, 'language_mode': language_mode, 'file_name': file_name,
                'submit_detail': submit_detail, 'submit_contest_time': submit_contest_time, 'base_page': base_page}

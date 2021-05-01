@@ -53,6 +53,7 @@ class TestCase(models.Model):
                                                                                                     
     class Meta:
         unique_together = ('problem', 'input', 'output')
+        unique_together = ('problem', 'name')
 
     def __str__(self):
         return self.problem.title + ' test case ' + self.name

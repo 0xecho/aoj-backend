@@ -134,7 +134,7 @@ def rank_update(submit):
    this_contest.save()   
 
 
-def testcase_output(path_list, result_list, submit):
+def testcase_output(result_list, submit):
    result_dict ={0: 'Correct', 2: 'Time Limit Exceeded', 3: 'Time Limit Exceeded',
                   -1: 'Wrong Answer', 4: 'Memory Limit Exceeded', 5: 'Run Time Error'}
 
@@ -146,13 +146,9 @@ def testcase_output(path_list, result_list, submit):
       real_time = test['real_time']
       result = result_dict[test['result']]
       testcase_name = test['testcase']
-      user_output_path = path_list[testcase_name]
-      user_output_path = os.path.join(server, user_output_path)
-      # print(user_output_path)
       try:
          testcase_instance = TestCase.objects.get(name=testcase_name, problem=submit.problem)
-         # user_output = File(open(user_output_path, 'r'))
-         insert = TestcaseOutput(test_case=testcase_instance, submit=submit,
+         insert = TestcaseOutput(test_case=testcase_instance, result=result, submit=submit,
             execution_time=cpu_time, memory_usage=memory)
 
          insert.save()
@@ -226,6 +222,7 @@ def judge_background(submission_id):
       # print()
 
       submission.server = server
+      submission.output_path = judge_server_result["user_output_path"]
       submission.save()
 
       if judge_server_result['success']:
@@ -247,7 +244,7 @@ def judge_background(submission_id):
                break
          submission.result = total_result
          
-         testcase_output(judge_server_result["user_output_path"], judge_server_result['data'], submission) 
+         testcase_output(judge_server_result['data'], submission) 
       elif judge_server_result['error'] == 'CompileError':
          submission.result = "Compiler Error"
       elif judge_server_result['error'] == 'Exception':

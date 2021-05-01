@@ -55,7 +55,8 @@ class Submit(models.Model):
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE, null=True, blank=True)
     submit_time = models.DateTimeField()
     server = models.ForeignKey(JudgeServer, on_delete=models.CASCADE)
-    # output_path = 
+    output_path = models.CharField(max_length=200)
+    
     def __str__(self):
         return self.problem.title + ' by ' + self.user.username + ' for _sid '+str(self.pk)
    

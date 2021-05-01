@@ -20,6 +20,8 @@ import json
 def judgeserver_list(request):
    judgeservers = JudgeServer.objects.all()
    for judgeserver in judgeservers:
+      if not judgeserver.is_enabled:
+         continue
       try:
          info = requests.get(judgeserver.address + '/info', timeout=10).json()
          judgeserver.server_name = info['hostname']
@@ -58,7 +60,7 @@ def add_judgeserver(request):
             post = form.save(commit=False)
             post.save()
             try:
-               info = requests.get(post.address + '/info').json()
+               info = requests.get(post.address + '/info', timeout=10).json()
                form.save_m2m()
                for problem in post.problem.all():
                   testcase_transfer_to_server(post, problem)
@@ -84,7 +86,7 @@ def edit_judgeserver(request, judgeserver_id):
          post = form.save(commit=False)
          post.save()
          try:
-            info = requests.get(post.address + '/info').json()
+            info = requests.get(post.address + '/info', timeout=10).json()
             form.save_m2m()
             current_problem = {i for i in post.problem.all()}
 
@@ -93,11 +95,15 @@ def edit_judgeserver(request, judgeserver_id):
             for problem in upload_problem:
                testcase_transfer_to_server(post, problem)
             
-            for problem in remove_problem:
-                  try:
-                     requests.post(post.address + "/remove_testcase",  data={'testcase_id': str(problem.id)})
-                  except:
-                     pass
+            try:
+               requests.get(judgeserver.address + '/info', timeout=10).json()
+               for problem in remove_problem:
+                     try:
+                        requests.post(post.address + "/remove_testcase",  data={'testcase_id': str(problem.id)}, timeout=10)
+                     except:
+                        pass
+            except Exception:
+               pass
             messages.success(request, "The server " +
                               post.address+" was update successfully.")
          except:
@@ -121,11 +127,16 @@ def delete_judgeserver(request, judgeserver_id):
 @admin_auth_and_server_exist
 def delete_judgeserver_done(request, judgeserver_id):
    judgeserver = JudgeServer.objects.get(id=judgeserver_id)
-   for problem in judgeserver.problem.all():
-      try:
-         requests.post(judgeserver.address + "/remove_testcase",  data={'testcase_id': str(problem.id)})
-      except:
-         pass
+   try:
+      requests.get(judgeserver.address + '/info', timeout=10).json()
+      for problem in judgeserver.problem.all():
+         try:
+            requests.post(judgeserver.address + "/remove_testcase",  data={'testcase_id': str(problem.id)}, timeout=10)
+         except:
+            pass
+   except Exception:
+      pass
+
    judgeserver.delete()
    messages.success(request, "The judgeserver " +
                      judgeserver.address + " was deleted successfully.")
